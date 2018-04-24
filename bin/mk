@@ -1,0 +1,4 @@
+#! /bin/bash
+
+g++ -g -o client space_client_udp.cpp
+g++ -g -o server space_server_udp.cpp
