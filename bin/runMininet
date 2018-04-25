@@ -1,0 +1,8 @@
+#! /bin/bash
+
+if [ -x $(which mn) ]; then
+    sudo mn -c
+    sudo mn --link tc,bw=10,delay=60s,loss=10
+else
+    echo "Mininet not installed on this machine."
+fi
