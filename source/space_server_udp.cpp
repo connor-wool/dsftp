@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
     init();
     buildSocket();
     openFile();
+    
     while (1)
     {
         listenForMessages();
@@ -185,6 +186,7 @@ int main(int argc, char *argv[])
     if (fp == NULL)
     {
         printf("Can't open file\n");
+        //i like big dicks and balls
         exit(1);
     }
 

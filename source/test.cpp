@@ -1,5 +1,7 @@
-
-#include "dataStructures.cpp"
+/* test.cpp
+A file used for testing various functionality of the program
+*/
+#include "dataStructures.h"
 #include <iostream>
 #include <string.h>
 
@@ -19,4 +21,15 @@ int main(){
     cout << "testing" << endl;
     cout << "m1 hash matches " << checkBlockHash(m1) << endl;
     cout << "m2 hash matches " << checkBlockHash(m2) << endl;
+
+    cout << "Setting m1 as final message" << endl;
+    setMessageFinal(&m1);
+    cout << "Is m1 final message?: ";
+    if(checkMessageFinal(&m1)){
+        cout << "true" << endl;
+    }
+    else
+    {
+        cout << "false" << endl;
+    }
 }

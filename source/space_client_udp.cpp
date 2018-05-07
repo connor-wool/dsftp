@@ -1,26 +1,36 @@
+/* space_client_udp.cpp
+A file that generates the client for the DeepSpace FileTransferProtocol
+This client sends data blocks for a file to the server over a lossy link
+*/
+
+//std library includes
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <sys/types.h>
 #include <string.h>
 #include <time.h>
-#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+//includes for sockets
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
+//includes for file stat
+#include <sys/stat.h>
 
-//c++ includes to make my life easier
+//c++ includes to make life easier
 #include <vector>
 #include <string>
 #include <iostream>
 
-#include "dataStructures.cpp"
+//include the datastructures we need
+#include "dataStructures.h"
 
 using namespace std;
 
 #define SERVER_PORT 5432
-#define MAX_LINE 80
+//#define MAX_LINE 80
 
 //file management
 //FILE *fp;
@@ -31,7 +41,7 @@ struct hostent *hp;
 struct sockaddr_in sin;
 char *host;  //server hostname as a cstring
 char *fname; //input filename as a cstring
-char buf[MAX_LINE];
+//char buf[MAX_LINE];
 int s;
 int slen;
 
@@ -39,10 +49,13 @@ int slen;
 #define MESSAGE_BUFFER_MAX_SIZE 256
 #define STARTING_SEQ_VALUE 1
 
+//values to control sending of the messages
 int currentSequenceValue = STARTING_SEQ_VALUE;
 vector<struct MessageBlock> messageBuffer;
 int FILE_FINISHED_FLAG = 0;
 int ALL_MSGS_ACKED_FLAG = 0;
+char *ackTable;
+struct stat fileStat;
 
 void createSocket()
 {
@@ -80,16 +93,35 @@ void createSocket()
 void openFile()
 {
     FileDescriptor = open(fname, O_RDONLY);
-    if(FileDescriptor <= 0){
+    if (FileDescriptor <= 0)
+    {
         printf("Can't open file\n");
         exit(1);
     }
+    int retval = stat(fname, &fileStat);
+    if (retval)
+    {
+        cout << "Something went wrong stat-ing file" << endl;
+    }
+    cout << "file size: " << fileStat.st_size << endl;
+    ackTable = NULL;
+    ackTable = (char *)malloc((fileStat.st_size * sizeof(char)) / 8);
+    if(ackTable != NULL){
+        cout << "Successfully created ack table" << endl;
+    }
+    else{
+        cout << "Error creating ack table, exiting..." << endl;
+        exit(1);
+    }
+    memset(ackTable, 0, sizeof(ackTable));
+    cout << "ackTable has size: " << fileStat.st_size * sizeof(char) * 8 << " bits" << endl;
 }
 
 void fillMessageBuffer()
 {
     cout << "Filling Message Buffer, current size: " << messageBuffer.size() << endl;
-    char linebuf[1000];
+    char linebuf[MB_MESSAGE_SIZE];
+    /*
     if (ALL_MSGS_ACKED_FLAG)
     {
         for (int i = 0; i < 10; i++)
@@ -101,28 +133,31 @@ void fillMessageBuffer()
             messageBuffer.push_back(m);
         }
     }
-    else
+    */
+
+    while (messageBuffer.size() < MESSAGE_BUFFER_MAX_SIZE)
     {
-        while (messageBuffer.size() < MESSAGE_BUFFER_MAX_SIZE)
+        int bytesRead = read(FileDescriptor, linebuf, MB_MESSAGE_SIZE);
+        if (bytesRead > 0)
         {
-            int bytesRead = read(FileDescriptor, linebuf, 1000);
-            if (bytesRead > 0)
-            {
-                struct MessageBlock m;
-                memset(&m, 0, sizeof(struct MessageBlock));
-                memcpy(m.message, linebuf, 1000);
-                m.sequenceNumber = currentSequenceValue;
-                m.messageSize = bytesRead;
-                messageBuffer.push_back(m);
-                currentSequenceValue++;
+            MESSAGEBLOCK m;
+            memset(&m, 0, sizeof(MESSAGEBLOCK));
+            memcpy(m.message, linebuf, bytesRead);
+            m.sequenceNumber = currentSequenceValue;
+            m.messageSize = bytesRead;
+            if(bytesRead != MB_MESSAGE_SIZE){
+                setMessageFinal(&m);
             }
-            else
-            {
-                FILE_FINISHED_FLAG = 1;
-                break;
-            }
+            messageBuffer.push_back(m);
+            currentSequenceValue++;
+        }
+        else
+        {
+            FILE_FINISHED_FLAG = 1;
+            break;
         }
     }
+
     cout << "Finished filling message buffer, new size: " << messageBuffer.size() << endl;
 }
 
@@ -167,12 +202,13 @@ void listenForAck()
     {
         recvStatus = recvfrom(s, recvBuffer, sizeof(recvBuffer), 0, 0, 0);
     }
-    
+
     cout << "recieved ack, recvStatus = " << recvStatus << endl;
     cout << "sleeping to wait for full transmission" << endl;
     sleep(5);
     char deadBuffer[sizeof(struct AckBlock)];
-    while(recvStatus > 0){
+    while (recvStatus > 0)
+    {
         recvStatus = recvfrom(s, deadBuffer, sizeof(recvBuffer), 0, 0, 0);
     }
 
@@ -205,6 +241,7 @@ void listenForAck()
 int main(int argc, char *argv[])
 {
     //usage: ./client serverPort fileToSend
+
     if (argc == 3)
     {
         host = argv[1];

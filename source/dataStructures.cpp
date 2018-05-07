@@ -1,4 +1,7 @@
 //Structure for storing space messages
+#include "dataStructures.h"
+/*
+#pragma once
 
 #include <iostream>
 
@@ -8,6 +11,7 @@ using namespace std;
 #define MESSAGE_IS_CONTROL (0x01 << 1)
 #define MESSAGE_IS_CODEX (0x01 << 2)
 #define MESSAGE_IS_TEARDOWN (0x01 << 3)
+
 
 typedef struct AckBlock
 {
@@ -24,6 +28,20 @@ typedef struct MessageBlock
     int messageSize;
     char message[1000];
 } MESSAGEBLOCK;
+*/
+bool checkMessageFinal(MESSAGEBLOCK *m){
+    if(m->flags & MESSAGE_IS_TEARDOWN){
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void setMessageFinal(MESSAGEBLOCK *m){
+    m->flags = m->flags | MESSAGE_IS_TEARDOWN;
+}
 
 //computes a checksum which is the 1's compliment of the sum of each 2 bytes
 unsigned int computeChecksum(struct MessageBlock m)
